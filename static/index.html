@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AudioCart Pro</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/mobile-fix.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        .sound-btn.playing {
+            background: rgba(0, 210, 255, 0.3);
+            border-color: var(--accent-color);
+            animation: pulse 0.5s ease infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                transform: scale(1);
+            }
+
+            to {
+                transform: scale(0.95);
+            }
+        }
+
+        .soundpad-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .soundpad-empty .icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .volume-icon {
+            font-size: 20px;
+            min-width: 28px;
+            text-align: center;
+        }
+
+        .volume-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            border: none;
+        }
+
+        .volume-value {
+            min-width: 40px;
+            text-align: right;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .mixer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .mixer-header h2 {
+            font-size: 18px;
+            color: var(--text-primary);
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .refresh-btn:active {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .mixer-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .mixer-item {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .mixer-item-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .mixer-app-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .mixer-app-name {
+            flex: 1;
+            font-weight: 500;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mute-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .mute-btn.muted {
+            opacity: 0.5;
+        }
+
+        .mixer-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .mixer-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        .mixer-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+        }
+
+        .mixer-value {
+            min-width: 36px;
+            text-align: right;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .mixer-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .mixer-empty .icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="app-header">
+            <h1>AudioCart</h1>
+            <div class="status-badge" id="status-badge">
+                <span id="currentEffect">Normal</span>
+            </div>
+        </div>
+
+        <div id="tab-voice" class="tab-content active">
+            <div class="effects-grid">
+                <button class="card-btn" id="btn-none" onclick="setEffect('none')">
+                    <span class="icon">🚫</span>
+                    <span>Normal</span>
+                </button>
+                <button class="card-btn" id="btn-pitch_up" onclick="setEffect('pitch_up')">
+                    <span class="icon">🐿️</span>
+                    <span>Pitch Up</span>
+                </button>
+                <button class="card-btn" id="btn-pitch_down" onclick="setEffect('pitch_down')">
+                    <span class="icon">👹</span>
+                    <span>Pitch Down</span>
+                </button>
+                <button class="card-btn" id="btn-radio" onclick="setEffect('radio')">
+                    <span class="icon">📻</span>
+                    <span>Radio</span>
+                </button>
+                <button class="card-btn" id="btn-echo" onclick="setEffect('echo')">
+                    <span class="icon">🔁</span>
+                    <span>Echo</span>
+                </button>
+                <button class="card-btn" id="btn-reverb" onclick="setEffect('reverb')">
+                    <span class="icon">🏛️</span>
+                    <span>Reverb</span>
+                </button>
+                <button class="card-btn" id="btn-distortion" onclick="setEffect('distortion')">
+                    <span class="icon">⚡</span>
+                    <span>Distortion</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="tab-soundpad" class="tab-content">
+            <div class="volume-control">
+                <span class="volume-icon" id="volumeIcon">🔊</span>
+                <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="70"
+                    oninput="setVolume(this.value)">
+                <span class="volume-value" id="volumeValue">70%</span>
+            </div>
+            <div class="soundpad-grid" id="soundpadGrid">
+                <div class="soundpad-empty">
+                    <span class="icon">🔇</span>
+                    <p>Loading sounds...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-tracks" class="tab-content">
+            <div class="mixer-header">
+                <h2>🎚️ Volume Mixer</h2>
+                <button class="refresh-btn" onclick="loadMixer()">⟳ Refresh</button>
+            </div>
+            <div class="mixer-list" id="mixerList">
+                <div class="mixer-empty">
+                    <span class="icon">🔇</span>
+                    <p>Loading apps...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('voice')">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                <path
+                    d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+            </svg>
+            <span>Voice</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('soundpad')">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z" />
+            </svg>
+            <span>Soundpad</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('tracks')">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+            </svg>
+            <span>Mixer</span>
+        </button>
+    </nav>
+
+    <script>
+        let currentEffect = 'none';
+        let currentlyPlayingId = null;
+        let currentVolume = 70;
+
+        const effectNames = {
+            'none': 'Normal',
+            'echo': 'Echo',
+            'pitch_up': 'Pitch Up',
+            'pitch_down': 'Pitch Down',
+            'radio': 'Radio',
+            'reverb': 'Reverb',
+            'distortion': 'Distortion'
+        };
+
+        const appIcons = {
+            'chrome.exe': '🌐',
+            'firefox.exe': '🦊',
+            'msedge.exe': '🌐',
+            'discord.exe': '💬',
+            'spotify.exe': '🎵',
+            'telegram.exe': '✈️',
+            'vlc.exe': '🎬',
+            'steam.exe': '🎮',
+            'obs64.exe': '📹',
+            'zoom.exe': '📹',
+            'default': '🔊'
+        };
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const index = tabName === 'voice' ? 0 : tabName === 'soundpad' ? 1 : 2;
+            document.querySelectorAll('.nav-item')[index].classList.add('active');
+
+            if (tabName === 'soundpad') {
+                loadSounds();
+                loadVolume();
+            } else if (tabName === 'tracks') {
+                loadMixer();
+            }
+        }
+
+        function setEffect(effect) {
+            fetch('/set_effect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ effect: effect })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    currentEffect = effect;
+                    updateEffectUI();
+                });
+        }
+
+        function updateEffectUI() {
+            document.getElementById('currentEffect').textContent = effectNames[currentEffect];
+            document.querySelectorAll('.effects-grid .card-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            const activeBtn = document.getElementById(`btn-${currentEffect}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const badge = document.getElementById('status-badge');
+            if (currentEffect !== 'none') badge.classList.add('active');
+            else badge.classList.remove('active');
+        }
+
+        function setVolume(value) {
+            currentVolume = parseInt(value);
+            document.getElementById('volumeValue').textContent = `${currentVolume}%`;
+            updateVolumeIcon();
+
+            fetch('/api/soundpad/volume', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ volume: currentVolume / 100 })
+            });
+        }
+
+        function updateVolumeIcon() {
+            const icon = document.getElementById('volumeIcon');
+            if (currentVolume === 0) {
+                icon.textContent = '🔇';
+            } else if (currentVolume < 50) {
+                icon.textContent = '🔉';
+            } else {
+                icon.textContent = '🔊';
+            }
+        }
+
+        function loadVolume() {
+            fetch('/api/soundpad/status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.volume !== undefined) {
+                        currentVolume = Math.round(data.volume * 100);
+                        document.getElementById('volumeSlider').value = currentVolume;
+                        document.getElementById('volumeValue').textContent = `${currentVolume}%`;
+                        updateVolumeIcon();
+                    }
+                });
+        }
+
+        async function loadSounds() {
+            const grid = document.getElementById('soundpadGrid');
+
+            try {
+                const res = await fetch('/api/sounds');
+                const data = await res.json();
+
+                if (data.sounds.length === 0) {
+                    grid.innerHTML = `
+                        <div class="soundpad-empty">
+                            <span class="icon">🔇</span>
+                            <p>No sounds added yet</p>
+                            <p style="font-size: 12px; margin-top: 8px;">Add sounds in /admin</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                grid.innerHTML = data.sounds.map(sound => `
+                    <button class="card-btn sound-btn" id="sound-${sound.id}" onclick="toggleSound('${sound.id}')">
+                        <span class="icon">${sound.emoji}</span>
+                        <span>${sound.name}</span>
+                    </button>
+                `).join('');
+
+                updatePlayingState();
+
+            } catch (err) {
+                console.error('Failed to load sounds:', err);
+            }
+        }
+
+        async function toggleSound(id) {
+            const btn = document.getElementById(`sound-${id}`);
+
+            if (currentlyPlayingId === id) {
+                await fetch('/api/soundpad/stop', { method: 'POST' });
+                btn.classList.remove('playing');
+                currentlyPlayingId = null;
+                return;
+            }
+
+            if (currentlyPlayingId) {
+                const prevBtn = document.getElementById(`sound-${currentlyPlayingId}`);
+                if (prevBtn) prevBtn.classList.remove('playing');
+            }
+
+            try {
+                const res = await fetch(`/api/soundpad/play/${id}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.status === 'ok') {
+                    btn.classList.add('playing');
+                    currentlyPlayingId = id;
+                    pollPlaybackStatus(id);
+                }
+            } catch (err) {
+                console.error('Play error:', err);
+            }
+        }
+
+        async function pollPlaybackStatus(id) {
+            const checkStatus = async () => {
+                try {
+                    const res = await fetch('/api/soundpad/status');
+                    const data = await res.json();
+
+                    if (!data.playing) {
+                        const btn = document.getElementById(`sound-${id}`);
+                        if (btn) btn.classList.remove('playing');
+                        if (currentlyPlayingId === id) currentlyPlayingId = null;
+                    } else if (currentlyPlayingId === id) {
+                        setTimeout(checkStatus, 200);
+                    }
+                } catch (err) { }
+            };
+            setTimeout(checkStatus, 200);
+        }
+
+        function updatePlayingState() {
+            fetch('/api/soundpad/status')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.playing) {
+                        document.querySelectorAll('.sound-btn').forEach(btn => btn.classList.remove('playing'));
+                        currentlyPlayingId = null;
+                    } else if (currentlyPlayingId) {
+                        const btn = document.getElementById(`sound-${currentlyPlayingId}`);
+                        if (btn) btn.classList.add('playing');
+                    }
+                });
+        }
+
+        async function loadMixer() {
+            const list = document.getElementById('mixerList');
+
+            try {
+                const res = await fetch('/api/mixer');
+                const data = await res.json();
+
+                if (data.error) {
+                    list.innerHTML = `
+                        <div class="mixer-empty">
+                            <span class="icon">⚠️</span>
+                            <p>${data.error}</p>
+                            <p style="font-size: 12px; margin-top: 8px;">pip install pycaw comtypes</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (data.sessions.length === 0) {
+                    list.innerHTML = `
+                        <div class="mixer-empty">
+                            <span class="icon">🔇</span>
+                            <p>No audio apps running</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = data.sessions.map(session => {
+                    const icon = appIcons[session.name.toLowerCase()] || appIcons['default'];
+                    const displayName = session.name.replace('.exe', '');
+                    return `
+                        <div class="mixer-item" data-pid="${session.pid}">
+                            <div class="mixer-item-header">
+                                <div class="mixer-app-icon">${icon}</div>
+                                <div class="mixer-app-name">${displayName}</div>
+                                <button class="mute-btn ${session.muted ? 'muted' : ''}" 
+                                        onclick="toggleMute(${session.pid}, this)">
+                                    ${session.muted ? '🔇' : '🔊'}
+                                </button>
+                            </div>
+                            <div class="mixer-slider-row">
+                                <input type="range" class="mixer-slider" min="0" max="100" 
+                                       value="${session.volume}" 
+                                       oninput="setAppVolume(${session.pid}, this.value, this)">
+                                <span class="mixer-value">${session.volume}%</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error('Mixer error:', err);
+                list.innerHTML = `
+                    <div class="mixer-empty">
+                        <span class="icon">⚠️</span>
+                        <p>Failed to load mixer</p>
+                    </div>
+                `;
+            }
+        }
+
+        function setAppVolume(pid, value, slider) {
+            const item = slider.closest('.mixer-item');
+            const valueDisplay = item.querySelector('.mixer-value');
+            valueDisplay.textContent = `${value}%`;
+
+            fetch('/api/mixer/volume', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pid: pid, volume: parseInt(value) })
+            });
+        }
+
+        function toggleMute(pid, btn) {
+            fetch('/api/mixer/mute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pid: pid })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        btn.textContent = data.muted ? '🔇' : '🔊';
+                        btn.classList.toggle('muted', data.muted);
+                    }
+                });
+        }
+
+        updateEffectUI();
+        loadSounds();
+    </script>
+</body>
+
+</html>

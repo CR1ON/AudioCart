@@ -1,0 +1,16 @@
+# Web Framework
+fastapi
+uvicorn
+python-multipart
+
+# Audio Processing
+sounddevice
+numpy
+scipy
+
+# Audio File Handling
+pydub
+
+# Windows Audio Control (Mixer)
+pycaw
+comtypes
